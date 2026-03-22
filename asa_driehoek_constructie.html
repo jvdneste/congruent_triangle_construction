@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASA Driehoek Constructie</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f5f4f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); padding: 24px; max-width: 760px; width: 100%; }
+  h1 { font-size: 18px; font-weight: 500; color: #2c2c2a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888780; margin-bottom: 16px; }
+  canvas { width: 100%; display: block; border-radius: 8px; background: #fafaf8; border: 0.5px solid #e0dfd8; }
+  .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button { background: #fff; border: 0.5px solid #c0bfb8; border-radius: 8px; padding: 6px 16px; font-size: 14px; cursor: pointer; color: #2c2c2a; transition: background 0.15s; }
+  button:hover { background: #f0efe8; }
+  button:active { transform: scale(0.97); }
+  #pp { min-width: 44px; }
+  .step-counter { font-size: 12px; color: #888780; min-width: 52px; text-align: center; }
+  .info { flex: 1; min-width: 0; padding-left: 8px; }
+  .part-label { font-size: 11px; color: #888780; font-weight: 500; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .step-text { font-size: 14px; color: #2c2c2a; line-height: 1.5; }
+  .progress-wrap { margin-top: 10px; background: #e8e7e0; border-radius: 4px; height: 4px; overflow: hidden; }
+  .progress-bar { height: 4px; background: #D85A30; border-radius: 4px; transition: width 0.3s; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 0.5px solid #e8e7e0; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888780; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>ASA Driehoek Constructie</h1>
+  <p class="subtitle">Hoek–Zijde–Hoek · Stap voor stap met passer en liniaal</p>
+
+  <canvas id="c" width="680" height="370"></canvas>
+
+  <div class="controls">
+    <button onclick="stp(-1)">&#8592;</button>
+    <span class="step-counter" id="si">1 / 32</span>
+    <button onclick="stp(1)">&#8594;</button>
+    <button id="pp" onclick="tp()">&#9646;&#9646;</button>
+    <div class="info">
+      <div class="part-label" id="pt"></div>
+      <div class="step-text" id="st"></div>
+    </div>
+  </div>
+
+  <div class="progress-wrap"><div class="progress-bar" id="pb" style="width:3%"></div></div>
+
+  <div class="legend">
+    <div class="leg"><div class="dot" style="background:#D85A30"></div>Originele / nieuwe driehoek</div>
+    <div class="leg"><div class="dot" style="background:#7F77DD"></div>Hoek α (bij A)</div>
+    <div class="leg"><div class="dot" style="background:#1D9E75"></div>Hoek β (bij B)</div>
+    <div class="leg"><div class="dot" style="background:#EF9F27"></div>Actieve stap</div>
+  </div>
+</div>
+
+<script>
+var cv=document.getElementById('c'),ctx=cv.getContext('2d');
+var step=0,playing=true,tmr;
+
+var A={x:90,y:308},B={x:262,y:308},C={x:190,y:172};
+var Ap={x:392,y:308},Bp={x:564,y:308},Cp={x:492,y:172};
+var alp=Math.atan2(C.y-A.y,C.x-A.x);
+var bet=Math.atan2(C.y-B.y,C.x-B.x);
+var RR=50,AB=Math.hypot(B.x-A.x,B.y-A.y);
+
+var aP={x:A.x+RR,y:A.y};
+var aQ={x:A.x+RR*Math.cos(alp),y:A.y+RR*Math.sin(alp)};
+var pqD=Math.hypot(aQ.x-aP.x,aQ.y-aP.y);
+var aP2={x:Ap.x+RR,y:Ap.y};
+var aQ2={x:Ap.x+RR*Math.cos(alp),y:Ap.y+RR*Math.sin(alp)};
+var bR={x:B.x-RR,y:B.y};
+var bS={x:B.x+RR*Math.cos(bet),y:B.y+RR*Math.sin(bet)};
+var rsD=Math.hypot(bS.x-bR.x,bS.y-bR.y);
+var bR2={x:Bp.x-RR,y:Bp.y};
+var bS2={x:Bp.x+RR*Math.cos(bet),y:Bp.y+RR*Math.sin(bet)};
+
+var SS=[
+  {p:"Deel 1 — Teken de basis",t:"Kijk naar de originele driehoek. Zoek zijde a — de zijde tussen de twee bekende hoeken."},
+  {p:"Deel 1",t:"Zet de passerpunt op punt A van de originele driehoek."},
+  {p:"Deel 1",t:"Open de passer precies tot aan punt B. De passer heeft nu de lengte van zijde a opgeslagen."},
+  {p:"Deel 1",t:"Teken op een leeg vel papier een rechte horizontale lijn met je liniaal."},
+  {p:"Deel 1",t:"Zet een punt op het linkeruiteinde van die lijn. Schrijf daarnaast A'."},
+  {p:"Deel 1",t:"Zet de passerpunt op A' — verander de breedte van de passer niet."},
+  {p:"Deel 1",t:"Teken een boog die de basislijn kruist. Label het kruispunt B'."},
+  {p:"Deel 2 — Kopieer hoek α bij A'",t:"Zet de passerpunt op punt A (originele driehoek)."},
+  {p:"Deel 2",t:"Open de passer naar een willekeurige breedte — het maakt niet uit hoe groot."},
+  {p:"Deel 2",t:"Teken een boog die beide zijden van hoek α kruist. Label die twee kruispunten P en Q."},
+  {p:"Deel 2",t:"Ga naar de nieuwe tekening. Zet de passerpunt op A'."},
+  {p:"Deel 2",t:"Gebruik precies dezelfde passerbreedte als in stap 9."},
+  {p:"Deel 2",t:"Teken dezelfde boog vanuit A'. De boog kruist de basislijn. Label dat kruispunt P'."},
+  {p:"Deel 2",t:"Ga terug naar de originele driehoek. Zet de passerpunt op P en open hem precies tot aan Q."},
+  {p:"Deel 2",t:"Verander de passerbreedte niet. Zet de passerpunt op P'."},
+  {p:"Deel 2",t:"Teken een kleine boog. Die kruist de grote boog uit stap 13. Label het kruispunt Q'."},
+  {p:"Deel 2",t:"Trek een rechte lijn van A' door Q', ver voorbij Q'. Dit is de eerste straal van de gekopieerde hoek."},
+  {p:"Deel 3 — Kopieer hoek β bij B'",t:"Zet de passerpunt op punt B (originele driehoek)."},
+  {p:"Deel 3",t:"Open de passer naar een willekeurige breedte."},
+  {p:"Deel 3",t:"Teken een boog die beide zijden van hoek β kruist. Label die twee kruispunten R en S."},
+  {p:"Deel 3",t:"Ga naar de nieuwe tekening. Zet de passerpunt op B'."},
+  {p:"Deel 3",t:"Gebruik precies dezelfde passerbreedte als in stap 19."},
+  {p:"Deel 3",t:"Teken dezelfde boog vanuit B'. De boog kruist de basislijn. Label dat kruispunt R'."},
+  {p:"Deel 3",t:"Ga terug naar de originele driehoek. Zet de passerpunt op R en open hem precies tot aan S."},
+  {p:"Deel 3",t:"Verander de passerbreedte niet. Zet de passerpunt op R'."},
+  {p:"Deel 3",t:"Teken een kleine boog die de grote boog uit stap 23 kruist. Label het kruispunt S'."},
+  {p:"Deel 3",t:"Trek een rechte lijn van B' door S', ver voorbij S'. Dit is de eerste straal bij B'."},
+  {p:"Deel 4 — Vind C' en maak de driehoek af",t:"Kijk naar de twee stralen — één gaat omhoog vanuit A', één vanuit B'."},
+  {p:"Deel 4",t:"Zoek het punt waar de twee stralen elkaar kruisen. Zet daar een punt."},
+  {p:"Deel 4",t:"Noem dat kruispunt C'."},
+  {p:"Deel 4",t:"Trek een rechte lijn van A' naar C'."},
+  {p:"Deel 4",t:"Trek een rechte lijn van B' naar C'. Driehoek A'B'C' is klaar en congruent aan de originele!"}
+];
+
+function draw(){
+  var s=step;
+  ctx.clearRect(0,0,680,370);
+  var hi='#EF9F27',pr='#2C2C2A',sc='#888780',co='#D85A30',pu='#7F77DD',te='#1D9E75',lt='#D3D1C7';
+
+  function ln(x1,y1,x2,y2,c,w,d){ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=w||1.5;ctx.setLineDash(d||[]);ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);}
+  function ar(x,y,r,a1,a2,c,w,d){ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=w||1.5;ctx.setLineDash(d||[]);ctx.arc(x,y,r,a1,a2,false);ctx.stroke();ctx.setLineDash([]);}
+  function dt(x,y,c,r){ctx.beginPath();ctx.fillStyle=c;ctx.arc(x,y,r||4,0,6.28);ctx.fill();}
+  function tx(str,x,y,c,sz,b){ctx.fillStyle=c;ctx.font=(b?'500 ':'400 ')+(sz||12)+'px system-ui,sans-serif';ctx.fillText(str,x,y);}
+  function gl(x,y,c){ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.arc(x,y,15,0,6.28);ctx.stroke();}
+
+  ln(330,10,330,358,lt,0.5);
+  tx('Originele driehoek',44,24,sc,11);
+  tx('Nieuwe constructie',364,24,sc,11);
+
+  ln(A.x,A.y,B.x,B.y,s===0?hi:pr,s===0?2.5:1.5);
+  ln(A.x,A.y,C.x,C.y,pr,1.5);
+  ln(B.x,B.y,C.x,C.y,pr,1.5);
+  tx('a',172,325,s===0?hi:sc,12,s===0);
+
+  var ac=s>=7&&s<=16?pu:sc;
+  var bc=s>=17&&s<=26?te:sc;
+  ar(A.x,A.y,24,alp,0,ac,1.2);
+  tx('α',A.x+27,A.y-4,ac,12);
+  ar(B.x,B.y,24,Math.PI,bet,bc,1.2);
+  tx('β',B.x-33,B.y-12,bc,12);
+
+  var aHi=s===1||s===2||s===7||s===8||s===9||s===13;
+  var bHi=s===17||s===18||s===19||s===23;
+  dt(A.x,A.y,aHi?hi:pr);dt(B.x,B.y,bHi?hi:pr);dt(C.x,C.y,pr,3);
+  tx('A',A.x-16,A.y+5,pr,12,true);tx('B',B.x+6,B.y+5,pr,12,true);tx('C',C.x-4,C.y-8,pr,12,true);
+  if(aHi)gl(A.x,A.y,hi);if(bHi)gl(B.x,B.y,hi);
+  if(s===2)ar(A.x,A.y,AB,-0.13,0.13,hi,1.5,[5,2]);
+
+  if(s>=9){ar(A.x,A.y,RR,alp,0,s===9?hi:pu,1.2,[4,3]);dt(aP.x,aP.y,s===9?hi:pu,3);dt(aQ.x,aQ.y,s===9?hi:pu,3);tx('P',aP.x+4,aP.y+13,pu,11);tx('Q',aQ.x-2,aQ.y-7,pu,11);}
+  if(s===13){ln(aP.x,aP.y,aQ.x,aQ.y,hi,1.2,[3,2]);gl(aP.x,aP.y,hi);}
+  if(s>=19){ar(B.x,B.y,RR,Math.PI,bet,s===19?hi:te,1.2,[4,3]);dt(bR.x,bR.y,s===19?hi:te,3);dt(bS.x,bS.y,s===19?hi:te,3);tx('R',bR.x-14,bR.y+13,te,11);tx('S',bS.x+4,bS.y-7,te,11);}
+  if(s===23){ln(bR.x,bR.y,bS.x,bS.y,hi,1.2,[3,2]);gl(bR.x,bR.y,hi);}
+
+  if(s>=3)ln(372,308,596,308,s===3?hi:pr,s===3?2.5:1);
+  if(s>=4){var ahC=s===4||s===5||s===6||s===10||s===11||s===12||s===14||s===15||s===16;dt(Ap.x,Ap.y,ahC?hi:pr);tx("A'",Ap.x-21,Ap.y+5,pr,12,true);if(s===4||s===5||s===10||s===11||s===14)gl(Ap.x,Ap.y,hi);}
+  if(s===5||s===6)ar(Ap.x,Ap.y,AB,-0.13,0.13,hi,1.5,[5,2]);
+  if(s>=6){var bhC=s===6||s===20||s===21||s===22||s===24||s===25||s===26;dt(Bp.x,Bp.y,bhC?hi:pr);tx("B'",Bp.x+6,Bp.y+5,pr,12,true);if(s===6||s===20||s===21||s===22||s===24)gl(Bp.x,Bp.y,hi);}
+  if(s>=12){ar(Ap.x,Ap.y,RR,alp,0,s===12?hi:pu,1.2,[4,3]);dt(aP2.x,aP2.y,s===12?hi:pu,3);tx("P'",aP2.x+4,aP2.y+13,pu,11);}
+  if(s===14)gl(aP2.x,aP2.y,hi);
+  if(s>=15){if(s===15){var dQ=Math.atan2(aQ2.y-aP2.y,aQ2.x-aP2.x);ar(aP2.x,aP2.y,pqD,dQ-0.5,dQ+0.5,hi,1.2,[3,2]);}dt(aQ2.x,aQ2.y,s===15?hi:pu,3);tx("Q'",aQ2.x-4,aQ2.y-7,pu,11);}
+  if(s>=16){var raC=s===16||s===27?hi:pu;var raW=s===16||s===27?2:1.2;ln(Ap.x,Ap.y,Ap.x+215*Math.cos(alp),Ap.y+215*Math.sin(alp),raC,raW,[5,3]);}
+  if(s>=22){ar(Bp.x,Bp.y,RR,Math.PI,bet,s===22?hi:te,1.2,[4,3]);dt(bR2.x,bR2.y,s===22?hi:te,3);tx("R'",bR2.x-17,bR2.y+13,te,11);}
+  if(s===24)gl(bR2.x,bR2.y,hi);
+  if(s>=25){if(s===25){var dS=Math.atan2(bS2.y-bR2.y,bS2.x-bR2.x);ar(bR2.x,bR2.y,rsD,dS-0.5,dS+0.5,hi,1.2,[3,2]);}dt(bS2.x,bS2.y,s===25?hi:te,3);tx("S'",bS2.x+4,bS2.y-7,te,11);}
+  if(s>=26){var rbC=s===26||s===27?hi:te;var rbW=s===26||s===27?2:1.2;ln(Bp.x,Bp.y,Bp.x+185*Math.cos(bet),Bp.y+185*Math.sin(bet),rbC,rbW,[5,3]);}
+  if(s>=28)dt(Cp.x,Cp.y,s===28?hi:co,s===28?6:4);
+  if(s>=29)tx("C'",Cp.x-4,Cp.y-10,co,12,true);
+  if(s>=30)ln(Ap.x,Ap.y,Cp.x,Cp.y,s===30?hi:co,2.5);
+  if(s>=31){ln(Bp.x,Bp.y,Cp.x,Cp.y,s===31?hi:co,2.5);ctx.strokeStyle=co;ctx.lineWidth=0.5;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(Ap.x,Ap.y);ctx.lineTo(Bp.x,Bp.y);ctx.lineTo(Cp.x,Cp.y);ctx.closePath();ctx.stroke();tx('✓',Cp.x+8,Cp.y-4,co,14,true);}
+
+  document.getElementById('si').textContent=(s+1)+' / 32';
+  document.getElementById('pt').textContent=SS[s].p;
+  document.getElementById('st').textContent=SS[s].t;
+  document.getElementById('pp').textContent=playing?'⏸':'▶';
+  document.getElementById('pb').style.width=Math.round((s/31)*100)+'%';
+}
+
+function stp(d){clearInterval(tmr);playing=false;step=Math.max(0,Math.min(31,step+d));draw();document.getElementById('pp').textContent='▶';}
+function tp(){
+  playing=!playing;
+  if(playing){tmr=setInterval(function(){if(step<31){step++;draw();}else{clearInterval(tmr);playing=false;draw();}},2400);}
+  else clearInterval(tmr);
+  draw();
+}
+
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')stp(1);if(e.key==='ArrowLeft')stp(-1);if(e.key===' '){e.preventDefault();tp();}});
+
+draw();
+tmr=setInterval(function(){if(step<31){step++;draw();}else{clearInterval(tmr);playing=false;draw();}},2400);
+</script>
+</body>
+</html>
